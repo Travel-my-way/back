@@ -8,7 +8,7 @@ import json
 import datetime
 
 app = flask.Flask(__name__)
-app.config["DEBUG"] = True
+app.config["DEBUG"] = False
 
 
 def generate_fake_steps():
