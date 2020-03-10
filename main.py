@@ -8,7 +8,7 @@ import json
 import datetime
 
 app = flask.Flask(__name__)
-app.config["DEBUG"] = True
+app.config["DEBUG"] = False
 
 
 def generate_fake_steps():
@@ -135,4 +135,5 @@ def page_not_found(e):
     return "<h1>404</h1><p>The resource could not be found.</p>", 404
 
 
-app.run()
+if __name__ == '__main__':
+    app.run()
