@@ -105,6 +105,10 @@ def search_for_all_fares(date, origin_id, destination_id, passengers, include_bu
         'Host': 'www.trainline.eu',
     }
 
+    # round date  to next hour to adapt to api's behavior
+    formated_date = date + timedelta(seconds=3599)
+    formated_date = dt(date.year,date.month,date.day,date.hour)
+
     session = requests.session()
     systems = ['sncf', 'db', 'idtgv', 'ouigo', 'trenitalia', 'ntv', 'hkx', 'renfe', 'cff', 'benerail', 'ocebo',
                'westbahn', 'leoexpress', 'locomore', 'distribusion', 'cityairporttrain', 'obb', 'timetable']
@@ -115,7 +119,7 @@ def search_for_all_fares(date, origin_id, destination_id, passengers, include_bu
     data = {'local_currency': 'EUR',
             'search': {'passengers': passengers,
                        'arrival_station_id': destination_id,
-                       'departure_date': str(date),
+                       'departure_date': str(formated_date),
                        'departure_station_id': origin_id,
                        'systems': systems
                        }
@@ -130,11 +134,11 @@ def search_for_all_fares(date, origin_id, destination_id, passengers, include_bu
     logger.info(f'Trainline API call duration {time.perf_counter() - time_before_call}')
     # logger.info('avant le format')
 
-    return format_trainline_response(ret.json(), segment_details=segment_details)
+    return format_trainline_response(ret.json(), departure_date = date, segment_details=segment_details)
 
 
 # Fucntion to format the trainline json repsonse
-def format_trainline_response(rep_json, segment_details=True, only_sellable=True):
+def format_trainline_response(rep_json, departure_date, segment_details=True, only_sellable=True):
     """
     Format complicated json with information flighing around into a clear dataframe
     """
@@ -151,8 +155,15 @@ def format_trainline_response(rep_json, segment_details=True, only_sellable=True
         folders = folders[folders.is_sellable]
         if folders.empty:
             return None
-    # Compute duration
+    # Filter out departure before specified departure hour
     folders['departure_date'] = pd.to_datetime(folders.departure_date)
+    if folders.departure_date.max() > departure_date:
+        folders = folders[folders.departure_date > departure_date]
+    else :
+        # if no train leaves after specified time we keep the latest
+        folders = folders.sort_values(by= 'departure_date').tail(1)
+
+    # Compute duration
     folders['arrival_date'] = pd.to_datetime(folders.arrival_date)
     folders['duration_s'] = folders.apply(lambda x: (x.arrival_date - x.departure_date).seconds, axis=1)
     # Filter most relevant trips
@@ -434,7 +445,7 @@ def main(query):
     for api_call in thread_list:
         fares = api_call.join()
         detail_response = detail_response.append(fares)
-    time_after_API_call = time.perf_counter()
+
     # Make sure we don't have duplicates (due to the 2 calls)
     if not detail_response.empty:
         detail_response = detail_response.drop_duplicates(['departure_date', 'arrival_date', 'nb_segments', 'name', 'latitude', 'longitude',
