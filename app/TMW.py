@@ -139,10 +139,10 @@ class Journey_step:
                 # 'geojson': self.geojson,
                 }
         return json
-    
+
     def plot_map(self, center=(48.864716,2.349014), zoom_start=4, _map=None):
         _map = init_map(center, zoom_start) if _map == None else _map
-        
+
         folium.features.GeoJson(data=self.geojson,
                                 name=self.label,
                                 overlay=True).add_to(_map)
@@ -157,8 +157,8 @@ class Query:
 
     def to_json(self):
         json = {'id': self.id,
-                 'start': self.start_point,
-                 'end': self.end_point,
+                 'start': [round(self.start_point[0],4), round(self.start_point[1],4)],
+                 'end': [round(self.end_point[0],4), round(self.end_point[1],4)],
                  'departure_date': str(self.departure_date),
                 }
         return json
