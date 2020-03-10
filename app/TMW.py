@@ -51,7 +51,7 @@ class Journey:
                 'journey_steps': [step.to_json() for step in self.steps]
                 }
         return json
-    
+
     def reset(self):
         self.score = 0
         self.total_distance = 0
@@ -59,7 +59,7 @@ class Journey:
         self.total_price_EUR = 0
         self.total_gCO2 = 0
         return self
-    
+
     def update(self):
         self.score = 0
         self.total_distance = sum(filter(None,[step.distance_m for step in self.steps]))
@@ -67,7 +67,7 @@ class Journey:
         self.total_price_EUR = sum(filter(None,[sum(step.price_EUR) for step in self.steps]))
         self.total_gCO2 = sum(filter(None,[step.gCO2 for step in self.steps]))
         return self
-    
+
     def plot_map(self, center=(48.864716,2.349014), tiles = 'Stamen Toner', zoom_start = 4, _map=None):
         _map = init_map(center, zoom_start) if _map == None else _map
 
@@ -120,7 +120,7 @@ class Journey_step:
         self.trip_code = trip_code #AF350 / TGV8342 / Métro Ligne 2 ect...
         self.transportation_final_destination = transportation_final_destination # Direction of metro / final stop on train ect..
         self.geojson = geojson
-        
+
     def to_json(self):
         json = {'id': self.id or '',
                 'type': self.type or '',
@@ -131,11 +131,11 @@ class Journey_step:
                 'departure_point': self.departure_point or '',
                 'arrival_point': self.arrival_point or '',
                 'departure_stop_name': self.departure_stop_name or '',
-                'arrival_stop_name': self.arrival_stop_name  or '',
-                'departure_date': str(self.departure_date) or ' or ''',
-                'arrival_date': str(self.arrival_date) or ' or ''',
-                'trip_code': self.trip_code or ' or ''',
-                'gCO2': self.gCO2 or ' or ''',
+                'arrival_stop_name': self.arrival_stop_name or '',
+                'departure_date': str(self.departure_date) or '',
+                'arrival_date': str(self.arrival_date) or '',
+                'trip_code': self.trip_code or '',
+                'gCO2': self.gCO2 or '',
                 # 'geojson': self.geojson,
                 }
         return json

@@ -142,6 +142,7 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
 
     logger.info(f'navitia_dict is {navitia_dict}')
     # Reconsiliate between navitia queries and interrurban journeys
+    journey_to_remove = list()
     for interurban_journey in all_journeys:
         # if fake journey no call to Navitia
         # if not interurban_journey.is_real_journey:
@@ -162,7 +163,8 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
             # logger.info(f'remove legs nb {len(interurban_journey.steps)}')
             # logger.info(f'last leg departs from {interurban_journey.steps[-1].departure_stop_name}')
             # logger.info(f'last leg arrives in  {interurban_journey.steps[-1].arrival_stop_name}')
-            all_journeys.remove(interurban_journey)
+            journey_to_remove.append(interurban_journey)
+    all_journeys = list(set(all_journeys) - set(journey_to_remove))
     nav_stop = perf_counter()
 
     if ors_journey is not None:
@@ -185,12 +187,13 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
 
 
 # This function only serves to run locally in debug mode
-def main(departure_date='2020-02-28T10:00:00.540Z', geoloc_dep=[48.810553, 2.406533], geoloc_arrival=[43.6043, 1.44199]):
+def main(departure_date='2020-03-05T11:56:36.145Z', geoloc_dep=[48.559,3.29939], geoloc_arrival=[45.0678,7.68249]):
     all_trips = compute_complete_journey(departure_date, geoloc_dep, geoloc_arrival)
     logger.info(f'{len(all_trips)} journeys returned')
     for i in all_trips:
         logger.info(i)
         #print(i.to_json())
+
 
 if __name__ == '__main__':
     main()

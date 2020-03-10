@@ -264,6 +264,7 @@ def ouibus_journeys(df_response, _id=0):
     It returns a list of TMW journey objects
         """
     # affect a price to each leg
+    df_response = df_response.drop_duplicates(['id', 'arrival', 'departure', 'id_destination', 'id_origin'])
     df_response['price_step'] = df_response.price_cents / (df_response.nb_segments * 100)
     # Compute distance for each leg
     # print(df_response.columns)
@@ -276,7 +277,7 @@ def ouibus_journeys(df_response, _id=0):
         itinerary = df_response[df_response.id == itinerary_id].reset_index(drop=True)
         # boolean to know whether and when there will be a transfer after the leg
         itinerary['next_departure'] = itinerary.departure_seg.shift(-1)
-        itinerary['next_stop_name'] = itinerary.short_name_origin_seg.shift(1)
+        itinerary['next_stop_name'] = itinerary.short_name_origin_seg.shift(-1)
         itinerary['next_geoloc'] = itinerary.geoloc_origin_seg.shift(-1)
         # get the slugs to create the booking link
         origin_slug = itinerary.origin_slug.unique()[0]
@@ -379,5 +380,4 @@ _PASSENGER = [{"id": 1,  "age": 30,  "price_currency": "EUR"}]
 
 if __name__ == '__main__':
     main()
-
 
