@@ -116,8 +116,8 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
     navitia_queries = list()
     for interurban_journey in all_journeys:
         # if fake journey no call to Navitia
-        if not interurban_journey.is_real_journey:
-            continue
+        # if not interurban_journey.is_real_journey:
+        #     continue
         interurban_journey.id = i
         i = i + 1
         navitia_queries.append(tmw.Query(0, geoloc_dep, interurban_journey.steps[0].departure_point, departure_date))
@@ -189,7 +189,7 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
 
 
 # This function only serves to run locally in debug mode
-def main(departure_date='2020-04-05T11:56:36.145Z', geoloc_dep=[48.559,3.29939], geoloc_arrival=[45.0678,7.68249]):
+def main(departure_date='2020-04-06T11:23:50.000Z', geoloc_dep=[48.7532,2.2966], geoloc_arrival=[43.5985,3.89687]):
     all_trips = compute_complete_journey(departure_date, geoloc_dep, geoloc_arrival)
     logger.info(f'{len(all_trips)} journeys returned')
     for i in all_trips:
