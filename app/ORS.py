@@ -62,6 +62,7 @@ def ORS_query_directions(query, profile='driving-car', toll_price=True, _id=0, g
                         price_EUR=[ORS_gas_price(ORS_step['routes'][0]['summary']['distance'])],
                         gCO2=local_emissions,
                         geojson=geojson,
+                        departure_date=query.departure_date
                         )
     # Correct arrival_date based on departure_date
     step.arrival_date = (step.departure_date + timedelta(seconds=step.duration_s))
@@ -69,7 +70,10 @@ def ORS_query_directions(query, profile='driving-car', toll_price=True, _id=0, g
     # Add toll price (optional)
     step = ORS_add_toll_price(step) if toll_price else step
 
-    ors_journey = tmw.Journey(0, steps=[step])
+    ors_journey = tmw.Journey(0,
+                              departure_date=query.departure_date,
+                              arrival_date=step.arrival_date,
+                              steps=[step])
     # Add category
     category_journey = list()
     for step in ors_journey.steps:

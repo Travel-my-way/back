@@ -45,9 +45,16 @@ def filter_and_label_relevant_journey(journey_list):
         if (constants.CATEGORY_CAR_JOURNEY in journey.category) & (type_checks[constants.CATEGORY_CAR_JOURNEY] < 2):
             filtered_journeys.append(journey)
             type_checks[constants.CATEGORY_CAR_JOURNEY] = type_checks[constants.CATEGORY_CAR_JOURNEY] + 1
+
+    filtered_journeys =  list(set(filtered_journeys))
+    # make sure the journey id fit
+    i = 0
+    for journey in filtered_journeys:
+        journey.id = i
+        i = i + 1
     logger.info(f'after type check we have {len(filtered_journeys)} journeys in the filter')
     # Delete double entries
-    return list(set(filtered_journeys))
+    return filtered_journeys
 
 
 def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.35], geoloc_arrival=[43.60,1.44]):
@@ -158,11 +165,6 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
             interurban_journey.update()
         else:
             logger.info(f'remove category {interurban_journey.category}')
-            # logger.info(f'remove price {interurban_journey.total_price_EUR}')#
-            # logger.info(f'remove price {interurban_journey.total_distance}')
-            # logger.info(f'remove legs nb {len(interurban_journey.steps)}')
-            # logger.info(f'last leg departs from {interurban_journey.steps[-1].departure_stop_name}')
-            # logger.info(f'last leg arrives in  {interurban_journey.steps[-1].arrival_stop_name}')
             journey_to_remove.append(interurban_journey)
     all_journeys = list(set(all_journeys) - set(journey_to_remove))
     nav_stop = perf_counter()
@@ -170,7 +172,7 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
     if ors_journey is not None:
         all_journeys.append(ors_journey)
 
-    if len(all_journeys)>0:
+    if len(all_journeys) > 0:
         # Filter most relevant Journeys
         filtered_journeys = filter_and_label_relevant_journey(all_journeys)
         filtered_journeys = [filtered_journey.to_json() for filtered_journey in filtered_journeys]
@@ -187,7 +189,7 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
 
 
 # This function only serves to run locally in debug mode
-def main(departure_date='2020-03-05T11:56:36.145Z', geoloc_dep=[48.559,3.29939], geoloc_arrival=[45.0678,7.68249]):
+def main(departure_date='2020-04-05T11:56:36.145Z', geoloc_dep=[48.559,3.29939], geoloc_arrival=[45.0678,7.68249]):
     all_trips = compute_complete_journey(departure_date, geoloc_dep, geoloc_arrival)
     logger.info(f'{len(all_trips)} journeys returned')
     for i in all_trips:

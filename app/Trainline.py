@@ -33,9 +33,7 @@ class ThreadApiCall(Thread):
         self.passengers = passengers
 
     def run(self):
-        journeys = search_for_all_fares(self.departure_date, self.origin_id, self.destination_id, self.passengers)
-        journeys['origin_slug'] = self.origin_slug
-        journeys['destination_slug'] = self.destination_slug
+        journeys = search_for_all_fares(self.departure_date, self.origin_id, self.destination_id, self.passengers,  self.origin_slug, self.destination_slug)
         self._return = journeys
 
     def join(self):
@@ -58,19 +56,6 @@ def update_trainline_stops(url=_STATIONS_CSV_FILE):
                                (all_stops_raw.is_suggestable == 't')]
     parent_stations = all_stops_raw[pd.isna(all_stops_raw.parent_station_id)]
     # Group info on bus or train
-    # all_stops['is_bus_station'] = all_stops.apply(
-    #     lambda x: (x.busbud_is_enabled == 't') or (x.flixbus_is_enabled == 't'), axis=1)
-    # all_stops['is_train_station'] = all_stops.apply(lambda x: (x.sncf_is_enabled == 't') or (x.idtgv_is_enabled == 't')
-    #                                                           or (x.db_is_enabled == 't') or (x.cff_is_enabled == 't')
-    #                                                           or (x.leoexpress_is_enabled == 't') or (
-    #                                                                       x.obb_is_enabled == 't')
-    #                                                           or (x.ntv_is_enabled == 't') or (x.hkx_is_enabled == 't')
-    #                                                           or (x.renfe_is_enabled == 't') or (
-    #                                                                       x.atoc_is_enabled == 't')
-    #                                                           or (x.benerail_is_enabled == 't') or (
-    #                                                                       x.westbahn_is_enabled == 't')
-    #                                                           or (x.ouigo_is_enabled == 't') or (
-    #                                                                       x.trenitalia_is_enabled == 't'), axis=1)
     all_stops['geoloc'] = all_stops.apply(lambda x: [x.latitude, x.longitude], axis=1)
     # Keep only relevant columns
     all_stops = all_stops[['name', 'slug', 'country', 'latitude', 'longitude', 'geoloc', 'parent_station_id']]
@@ -91,7 +76,7 @@ _PASSENGER = [{'id': '3c29a998-270e-416b-83f0-936b606638da', 'age': 39,
 
 
 # function to get all trainline fares and trips
-def search_for_all_fares(date, origin_id, destination_id, passengers, include_bus=True, segment_details=True):
+def search_for_all_fares(date, origin_id, destination_id, passengers, origin_slug, destination_slug, include_bus=True, segment_details=True):
     """
         This function takes in all the relevant information for the API call and returns a
             dataframe containing all the information from Trainline API
@@ -134,19 +119,25 @@ def search_for_all_fares(date, origin_id, destination_id, passengers, include_bu
     logger.info(f'Trainline API call duration {time.perf_counter() - time_before_call}')
     # logger.info('avant le format')
 
-    return format_trainline_response(ret.json(), departure_date = date, segment_details=segment_details)
+    return format_trainline_response(ret.json(), origin_slug, destination_slug, departure_date = date, segment_details=segment_details)
 
 
 # Fucntion to format the trainline json repsonse
-def format_trainline_response(rep_json, departure_date, segment_details=True, only_sellable=True):
+def format_trainline_response(rep_json, origin_slug, destination_slug, departure_date, segment_details=True, only_sellable=True):
     """
     Format complicated json with information flighing around into a clear dataframe
     """
     time_start_format = time.perf_counter()
     # logger.info(rep_json)
     # get folders (aggregated outbound or inbound trip)
-    folders = pd.DataFrame.from_dict(rep_json['folders'])
-    logger.info(f'on a {(folders.shape)} trains')
+    try:
+        folders = pd.DataFrame.from_dict(rep_json['folders'])
+    except :
+        logger.warning(f'Call to Trainline API gave no response for date {departure_date} from {origin_slug}'
+                       f' to {destination_slug}, json response was {rep_json}')
+        return pd.DataFrame()
+
+    logger.info(f'on a {folders.shape} trains for call at {departure_date} from {origin_slug} to {destination_slug}')
     # get places
     stations = pd.DataFrame.from_dict(rep_json['stations'])
 
@@ -154,6 +145,7 @@ def format_trainline_response(rep_json, departure_date, segment_details=True, on
     if only_sellable:
         folders = folders[folders.is_sellable]
         if folders.empty:
+            logger.warning(f'all trips from {origin_slug} to {destination_slug} are not sellable')
             return None
     # Filter out departure before specified departure hour
     folders['departure_date'] = pd.to_datetime(folders.departure_date)
@@ -215,6 +207,10 @@ def format_trainline_response(rep_json, departure_date, segment_details=True, on
         # for OUIGO trains
         folders_rich['train_name'] = folders_rich.train_name.combine_first(folders_rich.carrier)
 
+        # Add slugs
+        folders_rich['origin_slug'] = origin_slug
+        folders_rich['destination_slug'] = destination_slug
+
         logger.info(f'Trainline format {time.perf_counter() - time_start_format}')
         return folders_rich[
             ['id_global', 'departure_date', 'arrival_date', 'nb_segments', 'name', 'country', 'latitude', 'longitude',
@@ -222,7 +218,7 @@ def format_trainline_response(rep_json, departure_date, segment_details=True, on
              'cents', 'currency', 'departure_date_seg', 'name_depart_seg', 'country_depart_seg', 'geoloc_depart_seg',
              'arrival_date_seg', 'name_arrival_seg', 'country_arrival_seg', 'geoloc_arrival_seg',
              'transportation_mean', 'carrier', 'train_name', 'train_number', 'co2_emission',
-             'flexibility', 'travel_class_seg']].sort_values(by=['id_global', 'departure_date_seg'])
+             'flexibility', 'travel_class_seg', 'origin_slug', 'destination_slug']].sort_values(by=['id_global', 'departure_date_seg'])
 
 
 def trainline_journeys(df_response, _id=0):
@@ -401,9 +397,9 @@ def get_stops_from_geo_locs(geoloc_dep, geoloc_arrival, max_distance_km=50):
 
     # We get all station within approx 55 km (<=> 0.5 of distance proxi)
     parent_station_id_list = {}
-    parent_station_id_list['departure'] = stops_tmp[stops_tmp.distance_dep < 1000 * max_distance_km].sort_values(
+    parent_station_id_list['departure'] = stops_tmp[stops_tmp.distance_dep < 0.5].sort_values(
                     by='distance_dep').head().drop_duplicates('parent_station_id')
-    parent_station_id_list['arrival'] = stops_tmp[stops_tmp.distance_arrival < 1000 * max_distance_km].sort_values(
+    parent_station_id_list['arrival'] = stops_tmp[stops_tmp.distance_arrival < 0.5].sort_values(
         by='distance_arrival').head().drop_duplicates('parent_station_id')
     return parent_station_id_list
 
@@ -434,7 +430,7 @@ def main(query):
             try:
                 arrival_slug = _PARENT_STATION_SLUGS.loc[arrival_station_id, :].slug
             except:
-                arrival_slug = row_arr.slug
+                arrival_slug = row_arr.slug or ''
             logger.info(f'call Trainline API from {departure_slug}, to {arrival_slug }')
             thread_list.append(ThreadApiCall(departure_date_train, int(departure_station_id),
                                              int(arrival_station_id), departure_slug, arrival_slug ,
@@ -451,7 +447,11 @@ def main(query):
         detail_response = detail_response.drop_duplicates(['departure_date', 'arrival_date', 'nb_segments', 'name', 'latitude', 'longitude',
                                                        'name_arrival', 'cents', 'departure_date_seg', 'name_depart_seg', 'arrival_date_seg', 'name_arrival_seg',
                                                        'train_name', 'train_number'])
-    all_journeys = trainline_journeys(detail_response)
+        all_journeys = trainline_journeys(detail_response)
+
+    else:
+        logger.warning(f'No response from Trainline')
+        all_journeys = list()
     # for i in all_journeys:
     #     print(i.to_json())
 

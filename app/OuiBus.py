@@ -183,8 +183,8 @@ def get_stops_from_geo_loc(geoloc_origin, geoloc_destination, max_distance_km=50
         lambda x: (x.latitude - geoloc_destination[0])**2 + (x.longitude-geoloc_destination[1])**2, axis=1)
     # We get the 5 closests station (within max_distance_km)
     stations = {}
-    stations['origin'] = stops_tmp[stops_tmp.distance_origin < max_distance_km * 1000].sort_values(by='distance_origin').head(5)
-    stations['destination'] = stops_tmp[stops_tmp.distance_destination < max_distance_km * 1000].sort_values(by='distance_destination').head(5)
+    stations['origin'] = stops_tmp[stops_tmp.distance_origin < 0.5].sort_values(by='distance_origin').head(5)
+    stations['destination'] = stops_tmp[stops_tmp.distance_destination < 0.5].sort_values(by='distance_destination').head(5)
     return stations
 
 

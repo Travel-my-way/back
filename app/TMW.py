@@ -34,7 +34,7 @@ class Journey:
         self.steps.append(steps)
     
     def to_json(self):
-        json = {'id': self.id or '',
+        json = {'id': self.id or 0,
                 'label': self.label or '',
                 'category': self.category or '',
                 'score': self.score or '',
@@ -266,8 +266,12 @@ class ThreadNavitiaCall(Thread):
         self.run_time = 0
 
     def run(self):
-        journeys = Navitia.navitia_query_directions(self.query)
-        self._return = journeys
+        journey = Navitia.navitia_query_directions(self.query)
+        if journey is None:
+            # If Navitia could not give a response, we ask ors to do a car trip
+            journey = list()
+            journey.append(ORS.ORS_query_directions(self.query))
+        self._return = journey
 
     def join(self):
         Thread.join(self)

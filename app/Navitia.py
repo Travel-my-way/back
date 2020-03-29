@@ -171,7 +171,7 @@ def navitia_journeys(json, _id=0):
     except:
         logger.warning('ERROR {}'.format(json['error']))
         return None
-    for j in json['journeys']:
+    for j in journeys:
         i = _id
         # journey loop
         lst_sections = list()
@@ -236,9 +236,11 @@ def navitia_journeys_sections_type_public_transport(json, _id=0):
     )
     switcher_public_transport_type = {
         'Métro': constants.TYPE_METRO,
+        'Metro': constants.TYPE_METRO,
         'Bus': constants.TYPE_BUS,
         'Tramway': constants.TYPE_TRAM,
         'RER': constants.TYPE_METRO,
+        'Train': constants.TYPE_METRO,
     }
     _type = switcher_public_transport_type.get(display_information['commercial_mode'],
                                                "unknown public transport")
