@@ -239,43 +239,49 @@ def get_planes_from_skyscanner(date_departure, date_return, departure, arrival, 
     """
     # format date as yyyy-mm-dd
     date_formated = str(date_departure)[0:10]
-    url = "https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/pricing/v1.0"
     logger.info(f'get_planes try nb {try_number}')
     one_way = date_return is None
+
+    api_key = tmw_api_keys.SKYSCANNER_API_KEY
+    quote_url = 'http://partners.api.skyscanner.net/apiservices/pricing/v1.0'
+
+    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'}
+
+    data = {'country': 'FR', 'currency': 'EUR', 'locale': 'en-US', 'originplace': departure,
+            'destinationplace': arrival, 'outbounddate': date_formated}
+
+    data['apiKey'] = api_key
+
     # If another call to Skyscanner has already been successful, we don't want to waste too much time
     # so we decrease the max number of retries
     max_retries = 5
-    if one_way:
-        payload = f'cabinClass=economy&children=0&infants=0&country=FR&currency=EUR&locale=en-US&originPlace={departure}&destinationPlace={arrival}&outboundDate={date_formated}&adults=1'
-    else:
-        payload = f'inboundDate={date_return}&cabinClass=economy&children=0&infants=0&country=FR&currency=USD&locale=en-US&originPlace={departure}&destinationPlace={arrival}&outboundDate={date_departure}&adults=1'
 
-    headers = {
-        'x-rapidapi-host': "skyscanner-skyscanner-flight-search-v1.p.rapidapi.com",
-        'x-rapidapi-key': tmw_api_keys.SKYSCANNER_API_KEY,
-        'content-type': "application/x-www-form-urlencoded"
-    }
     # First POST request to create session
     time_before_call = time.perf_counter()
-    response = requests.request("POST", url, data=payload, headers=headers)
+    # response = requests.request("POST", url, data=payload, headers=headers)
+    response = requests.post(quote_url, headers=headers, data=data)
+
     # get session key
     # In some cases the API won't give a session key "Location" so we try and except
     try:
         # print(response.headers)
         key = response.headers['Location'].split('/')[-1]
-    except :
+        session_url = response.headers['Location']
+        logger.info('Alles Gut')
+    except:
         # Retry calling API 3 times
         try:
             # Let's look at the error from the API
             error = response.json()['ValidationErrors']
             logger.warning(error)
             # When the API says it's too busy, if we haven't past the max number of retires
-            if (error[0]['Message'] == 'Rate limit has been exceeded: 400 PerMinute for PricingSession')&(try_number < max_retries):
+            if (error[0]['Message'] == 'Rate limit has been exceeded: 400 PerMinute for PricingSession') & (
+                    try_number < max_retries):
                 time.sleep(1)
                 logger.info(f'we try our luck for chance {try_number + 1} out of 3 with Skyscanner')
                 # We call this same function again with the try_number increased by one
                 return get_planes_from_skyscanner(date_departure, date_return, departure, arrival,
-                                           details=True, try_number=try_number + 1)
+                                                  details=True, try_number=try_number + 1)
             else:
                 # we couldn't find any trips through the API so we return an empty DF
                 logger.info(f'out because {error}')
@@ -286,7 +292,7 @@ def get_planes_from_skyscanner(date_departure, date_return, departure, arrival, 
                 time.sleep(1.5)
                 # We call this same function again with the try_number increased by one
                 return get_planes_from_skyscanner(date_departure, date_return, departure, arrival,
-                                                  details=True, try_number=try_number+1)
+                                                  details=True, try_number=try_number + 1)
 
             # Otherwise we return an empty DF
             logger.warning('The Skyscanner API returned an unknown error')
@@ -297,21 +303,18 @@ def get_planes_from_skyscanner(date_departure, date_return, departure, arrival, 
     url = 'https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/pricing/uk2/v1.0/' + key
     # We only take the first page, 100 first results
     querystring = {"pageIndex": "0", "pageSize": "100"}
+    logger.info(session_url)
+    # response = requests.request("GET", url, headers=headers, params=querystring)
+    response = requests.get(session_url, headers=headers, params=data)
 
-    headers = {
-        'x-rapidapi-host': "skyscanner-skyscanner-flight-search-v1.p.rapidapi.com",
-        'x-rapidapi-key': tmw_api_keys.SKYSCANNER_API_KEY
-    }
-
-    response = requests.request("GET", url, headers=headers, params=querystring)
     logger.info(f'status code of get is {response.status_code}')
     # logger.info(response.content)
     if response.status_code == 429:
-        if try_number<max_retries:
+        if try_number < max_retries:
             time.sleep(1)
             return get_planes_from_skyscanner(date_departure, date_return, departure, arrival,
-                                          details=True, try_number=try_number + 1)
-        else :
+                                              details=True, try_number=try_number + 1)
+        else:
             logger.warning(f'Error {response.status_code} with Skyscanner API')
             return pd.DataFrame()
     try:
@@ -319,22 +322,22 @@ def get_planes_from_skyscanner(date_departure, date_return, departure, arrival, 
         # However we don't exceed the max number of retry and we don't wait for more than 5 sec
         #   for the response to be completed
         while response.json()['Status'] != 'UpdatesComplete':
-            response = requests.request("GET", url, headers=headers, params=querystring)
+            response = requests.get(session_url, headers=headers, params=data)
     except:
-       if response.status_code == 200:
+        if response.status_code == 200:
             # Should not happen
             logger.info('out because chai po')
             logger.info(response.json()['Status'])
             logger.info(response.json()['Legs'])
             return pd.DataFrame()
 
-    try :
+    try:
         # When the response actually contains something we call the fromat fonction to
         #    regroup all the necessary infos
         if len(response.json()['Legs']) > 0:
             # logger.info(f'Skyscanner API call duration {time.perf_counter() - time_before_call}')
             return format_skyscanner_response(response.json(), date_departure, departure, arrival, one_way, details)
-        else :
+        else:
             # The API could not find any trips
             logger.info('out because no legs. Looked like this though')
             logger.info(response.status_code)
