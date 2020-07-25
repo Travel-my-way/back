@@ -343,6 +343,8 @@ def ouibus_journeys(df_response, _id=0):
                 i = i + 1
         departure_date_formated = dt.strptime(str(lst_sections[0].departure_date)[0:15], '%Y-%m-%d %H:%M').strftime('%Y-%m-%d %H:00')
         journey_ouibus = tmw.Journey(_id, steps=lst_sections,
+                                     departure_date=lst_sections[0].departure_date,
+                                     arrival_date=lst_sections[-1].arrival_date,
                                      booking_link=f'https://fr.ouibus.com/recherche?origin={origin_slug}&destination={destination_slug}&outboundDate={departure_date_formated}')
         # Add category
         category_journey = list()
