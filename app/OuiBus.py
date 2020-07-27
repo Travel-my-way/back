@@ -264,12 +264,14 @@ def ouibus_journeys(df_response, _id=0):
     It returns a list of TMW journey objects
         """
     # affect a price to each leg
+    logger.info(f'ouibus response size {df_response.shape[0]}')
     df_response = df_response.drop_duplicates(['id', 'arrival', 'departure', 'id_destination', 'id_origin'])
-    df_response['price_step'] = df_response.price_cents / (df_response.nb_segments * 100)
+    # df_response.loc[:, 'price_step'] = df_response.apply(lambda x: x['price_cents']/(x['nb_segments']*100), axis=1)
+    df_response.insert(1, 'price_step', df_response.apply(lambda x: x['price_cents']/(x['nb_segments']*100), axis=1))
     # Compute distance for each leg
     # print(df_response.columns)
-    df_response['distance_step'] = df_response.apply(lambda x: distance(x.geoloc_origin_seg, x.geoloc_destination_seg).m,
-                                                     axis=1)
+    df_response.insert(1, 'distance_step', df_response.apply(lambda x: distance(x.geoloc_origin_seg, x.geoloc_destination_seg).m,
+                                                     axis=1))
     lst_journeys = list()
     # all itineraries :
     # logger.info(f'nb itinerary : {df_response.id.nunique()}')
