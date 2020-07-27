@@ -237,7 +237,7 @@ def compute_trips(date, passengers, geoloc_origin, geoloc_destination):
             destination_slug = all_stops['destination'][all_stops['destination'].id_meta_gare == destination_meta_gare_id]._carrier_id_meta_gare.unique()[0]
             if pd.isna(destination_slug):
                 destination_slug = all_stops['destination'][all_stops['destination'].id_meta_gare == destination_meta_gare_id]._carrier_id.unique()[0]
-            logger.info(f'call OuiBus API from {origin_slug} to {destination_slug}')
+            # logger.info(f'call OuiBus API from {origin_slug} to {destination_slug}')
             # make sure we don't call the API for a useless trip
             if origin_meta_gare_id != destination_meta_gare_id:
                 all_fares = search_for_all_fares(date, origin_meta_gare_id, destination_meta_gare_id, passengers)
@@ -264,7 +264,6 @@ def ouibus_journeys(df_response, _id=0):
     It returns a list of TMW journey objects
         """
     # affect a price to each leg
-    logger.info(f'ouibus response size {df_response.shape[0]}')
     df_response = df_response.drop_duplicates(['id', 'arrival', 'departure', 'id_destination', 'id_origin'])
     # df_response.loc[:, 'price_step'] = df_response.apply(lambda x: x['price_cents']/(x['nb_segments']*100), axis=1)
     df_response.insert(1, 'price_step', df_response.apply(lambda x: x['price_cents']/(x['nb_segments']*100), axis=1))
