@@ -258,7 +258,6 @@ def get_planes_from_skyscanner(date_departure, date_return, departure, arrival, 
 
     # First POST request to create session
     time_before_call = time.perf_counter()
-    # response = requests.request("POST", url, data=payload, headers=headers)
     response = requests.post(quote_url, headers=headers, data=data)
 
     # get session key
@@ -267,7 +266,6 @@ def get_planes_from_skyscanner(date_departure, date_return, departure, arrival, 
         # print(response.headers)
         key = response.headers['Location'].split('/')[-1]
         session_url = response.headers['Location']
-        logger.info('Alles Gut')
     except:
         # Retry calling API 3 times
         try:
@@ -303,7 +301,8 @@ def get_planes_from_skyscanner(date_departure, date_return, departure, arrival, 
     url = 'https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/pricing/uk2/v1.0/' + key
     # We only take the first page, 100 first results
     querystring = {"pageIndex": "0", "pageSize": "100"}
-    logger.info(session_url)
+    data['pageIndex'] = 0
+    data['pageSize'] = 100
     # response = requests.request("GET", url, headers=headers, params=querystring)
     response = requests.get(session_url, headers=headers, params=data)
 
@@ -671,6 +670,7 @@ def main(query):
     """
     airports, locations = get_airports_from_geo_locs(query.start_point, query.end_point)
     all_responses = list()
+    real_journeys = False
     # Let's call the API for every couple cities departure and arrival
     for airport_dep in airports['departure']:
         for airport_arrival in airports['arrival']:
@@ -688,17 +688,23 @@ def main(query):
             }
             single_route = skyscanner_query_directions(json_query)
             if len(single_route)>0:
+                real_journeys = True
                 for trip in single_route:
                     all_responses.append(trip)
             else :
-                # all_responses.append(create_fake_plane_journey(locations, airport_dep, airport_arrival))
-                all_responses = all_responses + create_plane_journey_from_flightradar_data(airports, query.departure_date)
+                # if we have not found real journeys yet, we "fake" some from flightradar DB
+                if not real_journeys:
+                    all_responses = all_responses + create_plane_journey_from_flightradar_data(airports, query.departure_date)
 
-    all_reponses_json = list()
-    for journey_sky in all_responses:
-        all_reponses_json.append(journey_sky.to_json())
-
-    return all_responses
+    if real_journeys:
+        # if there are real responses from Skyscanner we only return them
+        real_journeys_list = list()
+        for journey_sky in all_responses:
+            if journey_sky.is_real_journey:
+                real_journeys_list.append(journey_sky)
+        return real_journeys_list
+    else :
+        return all_responses
 
 
 ################# Recompute airport database (not run each time) ##############################@
