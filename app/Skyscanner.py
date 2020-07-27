@@ -88,16 +88,12 @@ def skyscanner_query_directions(query):
     This function takes an object query and returns a list of journey object thanks to the Skyscanner API
     """
     # extract departure and arrival points
-    logger.info(query['query']['start']['coord'])
-    # departure_points = ';'.join(query['query']['start']['coord'])
-    # arrival_points = ';'.join(query['query']['to']['coord'])
     departure_point = query['query']['start']['coord']
     arrival_point = query['query']['to']['coord']
     # extract departure date as 'yyyy-mm-dd'
     date_departure = query['query']['datetime']
     df_response = get_planes_from_skyscanner(date_departure, None, departure_point, arrival_point, details=True)
     if df_response is None or df_response.empty:
-        logger.warning('Skyscanner API returned no planes')
         return list()
     else:
         return skyscanner_journeys(df_response)
@@ -239,7 +235,7 @@ def get_planes_from_skyscanner(date_departure, date_return, departure, arrival, 
     """
     # format date as yyyy-mm-dd
     date_formated = str(date_departure)[0:10]
-    logger.info(f'get_planes try nb {try_number}')
+    # logger.info(f'get_planes try nb {try_number}')
     one_way = date_return is None
 
     api_key = tmw_api_keys.SKYSCANNER_API_KEY
@@ -258,7 +254,6 @@ def get_planes_from_skyscanner(date_departure, date_return, departure, arrival, 
 
     # First POST request to create session
     time_before_call = time.perf_counter()
-    # response = requests.request("POST", url, data=payload, headers=headers)
     response = requests.post(quote_url, headers=headers, data=data)
 
     # get session key
@@ -267,7 +262,6 @@ def get_planes_from_skyscanner(date_departure, date_return, departure, arrival, 
         # print(response.headers)
         key = response.headers['Location'].split('/')[-1]
         session_url = response.headers['Location']
-        logger.info('Alles Gut')
     except:
         # Retry calling API 3 times
         try:
@@ -303,11 +297,12 @@ def get_planes_from_skyscanner(date_departure, date_return, departure, arrival, 
     url = 'https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/pricing/uk2/v1.0/' + key
     # We only take the first page, 100 first results
     querystring = {"pageIndex": "0", "pageSize": "100"}
-    logger.info(session_url)
+    data['pageIndex'] = 0
+    data['pageSize'] = 100
     # response = requests.request("GET", url, headers=headers, params=querystring)
     response = requests.get(session_url, headers=headers, params=data)
 
-    logger.info(f'status code of get is {response.status_code}')
+    # logger.info(f'status code of get is {response.status_code}')
     # logger.info(response.content)
     if response.status_code == 429:
         if try_number < max_retries:
@@ -339,9 +334,9 @@ def get_planes_from_skyscanner(date_departure, date_return, departure, arrival, 
             return format_skyscanner_response(response.json(), date_departure, departure, arrival, one_way, details)
         else:
             # The API could not find any trips
-            logger.info('out because no legs. Looked like this though')
-            logger.info(response.status_code)
-            logger.info(response.json())
+            # logger.info('out because no legs. Looked like this though')
+            # logger.info(response.status_code)
+            # logger.info(response.json())
             # logger.info(f'Skyscanner API call duration {time.perf_counter() - time_before_call}')
             return pd.DataFrame()
     except:
@@ -357,7 +352,7 @@ def format_skyscanner_response(rep_json, date_departure, departure, arrival,
     Format complicated json with information flighing around into a clear dataframe
     See Skyscanner API doc for more info https://skyscanner.github.io/slate/?_ga=1.104705984.172843296.1446781555#polling-the-results
     """
-    logger.info('into format planes')
+    # logger.info('into format planes')
     # get legs (aggregated outbound or inbound trip)
     legs = pd.DataFrame.from_dict(rep_json['Legs'])
     # get itineraries (vector of 2 legs with the total price and price info)
@@ -526,7 +521,7 @@ def get_airports_from_geo_locs(geoloc_dep, geoloc_arrival):
             tmp_close_airports = stops_tmp.sort_values(by='distance_arrival').head(3)
     airport_list['arrival'] = tmp_close_airports.city_sky.unique()
     geoloc_list['arrival'] = tmp_close_airports[['city_sky', 'geoloc']]
-    logger.info(f'airports {airport_list}')
+    # logger.info(f'airports {airport_list}')
     return airport_list, geoloc_list
 
 
@@ -671,6 +666,7 @@ def main(query):
     """
     airports, locations = get_airports_from_geo_locs(query.start_point, query.end_point)
     all_responses = list()
+    real_journeys = False
     # Let's call the API for every couple cities departure and arrival
     for airport_dep in airports['departure']:
         for airport_arrival in airports['arrival']:
@@ -688,17 +684,24 @@ def main(query):
             }
             single_route = skyscanner_query_directions(json_query)
             if len(single_route)>0:
+                real_journeys = True
                 for trip in single_route:
                     all_responses.append(trip)
             else :
-                # all_responses.append(create_fake_plane_journey(locations, airport_dep, airport_arrival))
-                all_responses = all_responses + create_plane_journey_from_flightradar_data(airports, query.departure_date)
+                # if we have not found real journeys yet, we "fake" some from flightradar DB
+                if not real_journeys:
+                    all_responses = all_responses + create_plane_journey_from_flightradar_data(airports, query.departure_date)
 
-    all_reponses_json = list()
-    for journey_sky in all_responses:
-        all_reponses_json.append(journey_sky.to_json())
-
-    return all_responses
+    if real_journeys:
+        # if there are real responses from Skyscanner we only return them
+        real_journeys_list = list()
+        for journey_sky in all_responses:
+            if journey_sky.is_real_journey:
+                real_journeys_list.append(journey_sky)
+        return real_journeys_list
+    else :
+        logger.warning('Skyscanner API returned no planes')
+        return all_responses
 
 
 ################# Recompute airport database (not run each time) ##############################@

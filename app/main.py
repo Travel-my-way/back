@@ -52,7 +52,7 @@ def filter_and_label_relevant_journey(journey_list):
     for journey in filtered_journeys:
         journey.id = i
         i = i + 1
-    logger.info(f'after type check we have {len(filtered_journeys)} journeys in the filter')
+    logger.info(f'From {len(journey_list)} to {len(filtered_journeys)} journeys with the filter')
     # Delete double entries
     return filtered_journeys
 
@@ -109,8 +109,7 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
     all_journeys = trainline_journeys + skyscanner_journeys + ouibus_journeys
     # all_journeys = trainline_journeys
     i = 0
-    logger.info(f'we found {len(all_journeys)} inter urban journeys')
-    logger.info(f'it took for computing the interrurban journeys {perf_counter() - t1_start}')
+    logger.info(f'we found {len(all_journeys)} inter urban journeys it took {perf_counter() - t1_start} s')
     # Then we call Navitia to get the beginning and the end of the journey
     # Let's record all the query we need to send to Navitia, deduplicate them and call NAvitia only once
     navitia_queries = list()
@@ -147,7 +146,7 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
         navitia_steps, navitia_query = navitia_thread.join()
         navitia_dict[str(navitia_query.to_json())] = navitia_steps
 
-    logger.info(f'navitia_dict is {navitia_dict}')
+    # logger.info(f'navitia_dict is {navitia_dict}')
     # Reconsiliate between navitia queries and interrurban journeys
     journey_to_remove = list()
     for interurban_journey in all_journeys:

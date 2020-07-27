@@ -116,7 +116,7 @@ def search_for_all_fares(date, origin_id, destination_id, passengers, origin_slu
     ret = session.post(url="https://www.trainline.eu/api/v5_1/search",
                        headers=headers,
                        data=post_data)
-    logger.info(f'Trainline API call duration {time.perf_counter() - time_before_call}')
+    # logger.info(f'Trainline API call duration {time.perf_counter() - time_before_call}')
     # logger.info('avant le format')
 
     return format_trainline_response(ret.json(), origin_slug, destination_slug, departure_date = date, segment_details=segment_details)
@@ -137,7 +137,7 @@ def format_trainline_response(rep_json, origin_slug, destination_slug, departure
                        f' to {destination_slug}, json response was {rep_json}')
         return pd.DataFrame()
 
-    logger.info(f'on a {folders.shape} trains for call at {departure_date} from {origin_slug} to {destination_slug}')
+    # logger.info(f'on a {folders.shape} trains for call at {departure_date} from {origin_slug} to {destination_slug}')
     # get places
     stations = pd.DataFrame.from_dict(rep_json['stations'])
 
@@ -211,7 +211,7 @@ def format_trainline_response(rep_json, origin_slug, destination_slug, departure
         folders_rich['origin_slug'] = origin_slug
         folders_rich['destination_slug'] = destination_slug
 
-        logger.info(f'Trainline format {time.perf_counter() - time_start_format}')
+        # logger.info(f'Trainline format {time.perf_counter() - time_start_format}')
         return folders_rich[
             ['id_global', 'departure_date', 'arrival_date', 'nb_segments', 'name', 'country', 'latitude', 'longitude',
              'name_arrival', 'country_arrival', 'latitude_arrival', 'longitude_arrival',
@@ -431,7 +431,7 @@ def main(query):
                 arrival_slug = _PARENT_STATION_SLUGS.loc[arrival_station_id, :].slug
             except:
                 arrival_slug = row_arr.slug or ''
-            logger.info(f'call Trainline API from {departure_slug}, to {arrival_slug }')
+            # logger.info(f'call Trainline API from {departure_slug}, to {arrival_slug }')
             thread_list.append(ThreadApiCall(departure_date_train, int(departure_station_id),
                                              int(arrival_station_id), departure_slug, arrival_slug ,
                                              _PASSENGER))
