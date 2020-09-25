@@ -188,7 +188,7 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
 
 
 # This function only serves to run locally in debug mode
-def main(departure_date='2020-08-03T14:19:00.000Z', geoloc_dep=[48.854378, 2.383931], geoloc_arrival=[43.300215, 5.402853]):
+def main(departure_date='2020-10-03T14:19:00.000Z', geoloc_dep=[48.854378, 2.383931], geoloc_arrival=[43.300213, 5.402853]):
     all_trips = compute_complete_journey(departure_date, geoloc_dep, geoloc_arrival)
     logger.info(f'{len(all_trips)} journeys returned')
     for i in all_trips:
