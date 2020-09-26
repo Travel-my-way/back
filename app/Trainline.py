@@ -140,6 +140,10 @@ def format_trainline_response(rep_json, origin_slug, destination_slug, departure
     # logger.info(f'on a {folders.shape} trains for call at {departure_date} from {origin_slug} to {destination_slug}')
     # get places
     stations = pd.DataFrame.from_dict(rep_json['stations'])
+    # get conforts (bicycle friendliness)
+    conforts = pd.DataFrame.from_dict(rep_json['comfort_classes'])
+    conforts['bike_friendliness'] = conforts.apply(bike_friendly, axis=1)
+    print(conforts)
 
     # Filter out legs where there is no itinerary associated (so no price)
     if only_sellable:
@@ -178,6 +182,9 @@ def format_trainline_response(rep_json, origin_slug, destination_slug, departure
         # get segments (each unique actual train)
         trips = pd.DataFrame.from_dict(rep_json['trips'])
         segments = pd.DataFrame.from_dict(rep_json['segments'])
+        # add bike info
+        segments = segments.merge(conforts[['segment_id', 'bike_friendliness']], left_on='id', right_on='segment_id',
+                                  how='left')
         # Explode the list of segment associated to each leg to have one lie per segment
         folders_rich = pandas_explode(folders, 'trip_ids')
         folders_rich = folders_rich.merge(trips[['id', 'segment_ids']], left_on='trip_ids', right_on='id',
@@ -207,6 +214,9 @@ def format_trainline_response(rep_json, origin_slug, destination_slug, departure
         # for OUIGO trains
         folders_rich['train_name'] = folders_rich.train_name.combine_first(folders_rich.carrier)
 
+        # Force bicycle friendliness for TER
+        folders_rich['bike_friendliness'] = folders_rich.apply(force_bike_friendly_for_ter, axis=1)
+
         # Add slugs
         folders_rich['origin_slug'] = origin_slug
         folders_rich['destination_slug'] = destination_slug
@@ -218,7 +228,22 @@ def format_trainline_response(rep_json, origin_slug, destination_slug, departure
              'cents', 'currency', 'departure_date_seg', 'name_depart_seg', 'country_depart_seg', 'geoloc_depart_seg',
              'arrival_date_seg', 'name_arrival_seg', 'country_arrival_seg', 'geoloc_arrival_seg',
              'transportation_mean', 'carrier', 'train_name', 'train_number', 'co2_emission',
-             'flexibility', 'travel_class_seg', 'origin_slug', 'destination_slug']].sort_values(by=['id_global', 'departure_date_seg'])
+             'flexibility', 'travel_class_seg', 'origin_slug', 'destination_slug', 'bike_friendliness']].sort_values(by=['id_global', 'departure_date_seg'])
+
+
+def bike_friendly(x):
+    bike_or_no_bike = ''
+    for extra in x['options']['extras']:
+        if extra['title'] == 'Espace vélo':
+            bike_or_no_bike = extra['value']
+    return bike_or_no_bike
+
+
+def force_bike_friendly_for_ter(x):
+    if x.train_name == 'TER':
+        return 'bicycle_without_reservation'
+    else:
+        return x.bike_friendliness
 
 
 def trainline_journeys(df_response, _id=0):
@@ -269,6 +294,7 @@ def trainline_journeys(df_response, _id=0):
                                 arrival_point=[itinerary.latitude.iloc[0], itinerary.longitude.iloc[0]],
                                 departure_date=itinerary.departure_date_seg[0] - timedelta(seconds=_STATION_WAITING_PERIOD),
                                 arrival_date=itinerary.departure_date_seg[0],
+                                bike_friendly=True,
                                 geojson=[],
                                 )
 
@@ -296,6 +322,7 @@ def trainline_journeys(df_response, _id=0):
                                     departure_date=leg.departure_date_seg,
                                     arrival_date=leg.arrival_date_seg,
                                     trip_code=leg.trip_code,
+                                    bike_friendly='bicycle' in leg.bike_friendliness,
                                     geojson=[],
                                     )
             lst_sections.append(step)
@@ -315,6 +342,7 @@ def trainline_journeys(df_response, _id=0):
                                         departure_date=leg.arrival_date_seg,
                                         arrival_date=leg.next_departure,
                                         gCO2=0,
+                                        bike_friendly=True,
                                         geojson=[],
                                         )
                 lst_sections.append(step)
