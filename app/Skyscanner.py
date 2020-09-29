@@ -563,6 +563,30 @@ def create_fake_plane_journey(locations, airport_dep, airport_arrival):
     return fake_journey
 
 
+def get_min_price_from_rapidapi(airport_dep, airport_arr, departure_date):
+    # We call a different Skyscanner endpoint which gives only the best price per day for a given route
+    departure_date_str = str(departure_date)[0:10]
+
+    url = f"https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/browseroutes/v1.0/" \
+          f"US/EUR/en-US/{airport_dep}/{airport_arr}/{departure_date_str}"
+
+    headers = {
+        'x-rapidapi-host': "skyscanner-skyscanner-flight-search-v1.p.rapidapi.com",
+        'x-rapidapi-key': tmw_api_keys.SKYSCANNER_RAPIDAPI_KEY
+    }
+    response = requests.request("GET", url, headers=headers)
+
+    quotes = pd.DataFrame.from_dict(response.json()['Quotes'])
+
+    if len(quotes)>0:
+        quotes['DepartureDate'] = quotes.apply(lambda x: str(x.OutboundLeg['DepartureDate'])[0:10], axis=1)
+        min_price_from_rapidapi = quotes[(quotes.Direct) & (quotes.DepartureDate == departure_date_str)].MinPrice.mean()
+
+        return True, min_price_from_rapidapi
+
+    else :
+        return False, 0
+
 def create_plane_journey_from_flightradar_data(airports, departure_date):
     """
     We create a fake plane journey with only the approximate eqCO2 to be used in the computation in the front end
@@ -583,7 +607,12 @@ def create_plane_journey_from_flightradar_data(airports, departure_date):
             flights_df = relevant_flights[(relevant_flights.city_sky == airport_dep) &
                                           (relevant_flights.city_sky_arr == airport_arr) &
                                           (relevant_flights.hour_dep_int >= hour_of_day)]
-            response_flights = response_flights.append(flights_df)
+            # add approximate price
+            found_by_rapid_api, min_price = get_min_price_from_rapidapi(airport_dep, airport_arr, departure_date)
+
+            flights_df.insert(0, 'price', min_price)
+            if found_by_rapid_api:
+                response_flights = response_flights.append(flights_df)
     # distance_m = distance(geoloc_dep, geoloc_arrival).m
     response_flights['local_range_km'] = response_flights.apply(lambda x: get_range_km(x.distance_m), axis=1)
     response_flights['local_emissions'] = response_flights.apply(lambda x: calculate_co2_emissions(constants.TYPE_PLANE, constants.DEFAULT_CITY,
@@ -605,7 +634,7 @@ def create_plane_journey_from_flightradar_data(airports, departure_date):
                                 label=f'Arrive at the airport {format_timespan(_AIRPORT_WAITING_PERIOD)} before departure',
                                 distance_m=0,
                                 duration_s=_AIRPORT_WAITING_PERIOD,
-                                price_EUR=[],
+                                price_EUR=[flight.price],
                                 gCO2=0,
                                 departure_point=[flight.latitude, flight.longitude],
                                 arrival_point=[flight.latitude, flight.longitude],
