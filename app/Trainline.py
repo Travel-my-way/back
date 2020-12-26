@@ -143,7 +143,6 @@ def format_trainline_response(rep_json, origin_slug, destination_slug, departure
     # get conforts (bicycle friendliness)
     conforts = pd.DataFrame.from_dict(rep_json['comfort_classes'])
     conforts['bike_friendliness'] = conforts.apply(bike_friendly, axis=1)
-    print(conforts)
 
     # Filter out legs where there is no itinerary associated (so no price)
     if only_sellable:
