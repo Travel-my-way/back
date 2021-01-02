@@ -80,9 +80,8 @@ def format_blablacar_response(rep_json, departure_date, start_point, end_point):
         logger.warning(f'Call to BlaBlaCar API gave no response for date {departure_date} from {start_point}'
                        f' to {end_point}, json response was {rep_json}')
 
-    print(f'rep_json is {rep_json}')
-    print(f'trips is {trips}')
-
+    if trips.empty:
+        return None
     # Get price in euro
     trips['price'] = trips.apply(lambda x: x['price']['amount'], axis=1)
     # De jsonize waypoints
@@ -269,8 +268,10 @@ def main(query):
        It takes a query object and returns a list of journey objects
    """
     detail_response = search_for_trips(query.departure_date, query.start_point, query.end_point)
-    all_journeys = blablacar_journey(detail_response, query.departure_date, query.start_point, query.end_point)
-
+    if detail_response:
+        all_journeys = blablacar_journey(detail_response, query.departure_date, query.start_point, query.end_point)
+    else:
+        all_journeys = list()
     return all_journeys
 
 

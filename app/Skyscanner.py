@@ -598,6 +598,8 @@ def create_plane_journey_from_flightradar_data(airports, departure_date):
     relevant_flights = _FLIGHTRADAR_DATA[_FLIGHTRADAR_DATA.city_sky.isin(airports['departure']) &
                                          _FLIGHTRADAR_DATA.city_sky_arr.isin(airports['arrival'])]
     relevant_flights = relevant_flights[relevant_flights.day_of_week == day_of_week]
+    if relevant_flights.empty:
+        return list()
     relevant_flights['hour_dep'] = relevant_flights.apply(lambda x: dt.strptime(x.hour_dep, '%H:%M:%S') +
                                                                     timedelta(hours=1), axis=1)
     relevant_flights['hour_dep_int'] = relevant_flights.apply(lambda x: x.hour_dep.hour, axis=1)
