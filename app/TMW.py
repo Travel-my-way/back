@@ -10,6 +10,7 @@ from app import OuiBus
 from app import Navitia
 from app import ORS
 from app import BlablaCar
+from app import Ferries
 import time
 
 class Journey:
@@ -251,6 +252,10 @@ class ThreadComputeJourney(Thread):
         elif self.api == 'BlaBlaCar':
             time_launch = time.perf_counter()
             journeys = BlablaCar.main(self.query)
+            self.run_time = time.perf_counter() - time_launch
+        elif self.api == 'Ferry':
+            time_launch = time.perf_counter()
+            journeys = Ferries.main(self.query)
             self.run_time = time.perf_counter() - time_launch
         else:
             time_launch = time.perf_counter()

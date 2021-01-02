@@ -91,21 +91,25 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
     thread_trainline = tmw.ThreadComputeJourney(api='Trainline', query=query_start_finish)
     thread_ors = tmw.ThreadComputeJourney(api='ORS', query=query_start_finish)
     thread_blablacar = tmw.ThreadComputeJourney(api='BlaBlaCar', query=query_start_finish)
-#
+    thread_ferries = tmw.ThreadComputeJourney(api='Ferry', query=query_start_finish)
+
+
     ## Lancement des threads
     thread_skyscanner.start()
     thread_ouibus.start()
     thread_trainline.start()
     thread_ors.start()
     thread_blablacar.start()
-#
+    thread_ferries.start()
+
     ## Attendre que les threads se terminent
     skyscanner_journeys, time_skyscanner = thread_skyscanner.join()
     ouibus_journeys, time_ouibus = thread_ouibus.join()
     trainline_journeys, time_trainline = thread_trainline.join()
     ors_journey, time_or = thread_ors.join()
     blablacar_journeys, time_blabla = thread_blablacar.join()
-#
+    ferry_journeys, time_ferry = thread_ferries.join()
+
     if skyscanner_journeys is None:
         skyscanner_journeys = list()
     if trainline_journeys is None:
@@ -114,8 +118,11 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
         ouibus_journeys = list()
     if blablacar_journeys is None:
         blablacar_journeys = list()
+    if ferry_journeys is None:
+        ferry_journeys = list()
 
-    all_journeys = trainline_journeys + skyscanner_journeys + ouibus_journeys + blablacar_journeys
+    all_journeys = trainline_journeys + skyscanner_journeys + ouibus_journeys + blablacar_journeys + ferry_journeys
+    # all_journeys = ferry_journeys
     i = 0
     logger.info(f'we found {len(all_journeys)} inter urban journeys it took {perf_counter() - t1_start} s')
     # Then we call Navitia to get the beginning and the end of the journey
@@ -187,16 +194,16 @@ def compute_complete_journey(departure_date = '2019-11-28', geoloc_dep=[48.85,2.
         filtered_journeys = all_journeys
     t1_stop = perf_counter()
     logger.info(f'Elapsed time during computation: {t1_stop-t1_start} s')
-    logger.info(f'including: {time_trainline}s for trainline ')
-    logger.info(f'including: {time_skyscanner}s for skyscanner ')
-    logger.info(f'including: {time_ouibus}s for ouibus ')
-    logger.info(f'including: {time_or}s for ors ')
-    logger.info(f'including: {nav_stop - nav_start}s for navitia ')
+#    logger.info(f'including: {time_trainline}s for trainline ')
+#    logger.info(f'including: {time_skyscanner}s for skyscanner ')
+#    logger.info(f'including: {time_ouibus}s for ouibus ')
+#    logger.info(f'including: {time_or}s for ors ')
+#    logger.info(f'including: {nav_stop - nav_start}s for navitia ')
     return filtered_journeys
 
 
 # This function only serves to run locally in debug mode
-def main(departure_date='2020-11-30T14:19:00.000Z', geoloc_dep=[48.854378, 2.383931], geoloc_arrival=[43.300213, 5.402853]):
+def main(departure_date='2021-01-20T10:19:00.000Z', geoloc_dep=[45.734380, 4.840171], geoloc_arrival=[42.700822, 9.441968]):
     all_trips = compute_complete_journey(departure_date, geoloc_dep, geoloc_arrival)
     logger.info(f'{len(all_trips)} journeys returned')
     for i in all_trips:
