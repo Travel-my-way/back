@@ -9,6 +9,8 @@ from app import Skyscanner
 from app import OuiBus
 from app import Navitia
 from app import ORS
+from app import BlablaCar
+from app import Ferries
 import time
 
 class Journey:
@@ -28,6 +30,7 @@ class Journey:
         self.arrival_date  = arrival_date
         self.is_real_journey = True
         self.booking_link = booking_link
+        self.bike_friendly = False
         self.steps = steps
 
     def add(self, steps=[]):
@@ -66,6 +69,7 @@ class Journey:
         self.total_duration = sum(filter(None,[step.duration_s for step in self.steps]))
         self.total_price_EUR = sum(filter(None,[sum(step.price_EUR) for step in self.steps]))
         self.total_gCO2 = sum(filter(None,[step.gCO2 for step in self.steps]))
+        self.bike_friendly = all(step.bike_friendly for step in self.steps)
         return self
 
     def plot_map(self, center=(48.864716,2.349014), tiles = 'Stamen Toner', zoom_start = 4, _map=None):
@@ -103,7 +107,7 @@ class Journey:
 class Journey_step:
     def __init__(self, _id, _type, label='', distance_m=0, duration_s=0, price_EUR=[0.0], gCO2 = 0, departure_point=[0.0],
                  arrival_point=[0.0], departure_stop_name='', arrival_stop_name='', departure_date=dt.now()
-                 , arrival_date=dt.now(), transportation_final_destination='', trip_code='', geojson=''):
+                 , arrival_date=dt.now(), bike_friendly=False, transportation_final_destination='', trip_code='', geojson=''):
         self.id = _id
         self.type = _type
         self.label = label
@@ -118,6 +122,7 @@ class Journey_step:
         self.departure_date = departure_date
         self.arrival_date = arrival_date
         self.trip_code = trip_code #AF350 / TGV8342 / Métro Ligne 2 ect...
+        self.bike_friendly = bike_friendly
         self.transportation_final_destination = transportation_final_destination # Direction of metro / final stop on train ect..
         self.geojson = geojson
 
@@ -243,6 +248,14 @@ class ThreadComputeJourney(Thread):
         elif self.api == 'ORS':
             time_launch = time.perf_counter()
             journeys = ORS.ORS_query_directions(self.query)
+            self.run_time = time.perf_counter() - time_launch
+        elif self.api == 'BlaBlaCar':
+            time_launch = time.perf_counter()
+            journeys = BlablaCar.main(self.query)
+            self.run_time = time.perf_counter() - time_launch
+        elif self.api == 'Ferry':
+            time_launch = time.perf_counter()
+            journeys = Ferries.main(self.query)
             self.run_time = time.perf_counter() - time_launch
         else:
             time_launch = time.perf_counter()

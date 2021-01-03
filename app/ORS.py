@@ -39,12 +39,16 @@ def ORS_query_directions(query, profile='driving-car', toll_price=True, _id=0, g
     '''
     ORS_client = start_ORS_client()
     coord = [query.start_point[::-1], query.end_point[::-1]]   # WARNING it seems that [lon,lat] are not in the same order than for other API.
-    ORS_step = ORS_client.directions(
-        coord,
-        profile=profile,
-        instructions=False,
-        geometry=geometry,
-    )
+    try:
+        ORS_step = ORS_client.directions(
+            coord,
+            profile=profile,
+            instructions=False,
+            geometry=geometry,
+            options={'avoid_features': ['ferries']},
+        )
+    except:
+        return None
 
     geojson = convert.decode_polyline(ORS_step['routes'][0]['geometry'])
 
