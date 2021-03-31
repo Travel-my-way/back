@@ -7,7 +7,7 @@ geopy==1.20.0
 gunicorn==20.0.4
 humanfriendly==4.18
 loguru==0.2.5
-lxml==4.2.1
+lxml==4.6.3
 navitia-client==0.6.2
 numpy==1.14.3
 openrouteservice==2.2.3
